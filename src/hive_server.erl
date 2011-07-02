@@ -43,63 +43,65 @@ map(F, [H | T]) ->
 map(_, []) ->
     [].
     
-lisp_apply(Op, [H | T]) ->
-    case Op of
-        '+' ->
-            lists:foldl(fun(X, Accum) -> Accum + X end, 0, map(fun(X) -> eval({eval, X}) end, [H | T]));
-        '-' ->
-            lists:foldl(fun(X, Accum) -> Accum - X end, 0, map(fun(X) -> eval({eval, X}) end, [H | T]));
-        '*' ->
-            lists:foldl(fun(X, Accum) -> Accum * X end, 1, map(fun(X) -> eval({eval, X}) end, [H | T]));
-        '/' ->
-            lists:foldl(fun(X, Accum) -> Accum / X end, eval({eval, H}), map(fun(X) -> eval({eval, X}) end, T))
-            
-    end;
+lisp_apply(Fun, [H|T]) ->
+    apply(Fun, map(fun(X) -> eval({ok, X}) end, [H|T]));
     
 lisp_apply(_, []) -> [].
-
-read(String) ->
-    hive_parser:parse(element(2,hive_scanner:string(String))).
     
-eval({ok, Expression}) ->
-    eval(Expression);
+read({ok, Expression}) ->
+    read(Expression);
     
-eval({cons, E1, E2}) ->
-    [eval(E1), eval(E2)];
+read({cons, E1, E2}) ->
+    [read(E1), read(E2)];
     
-eval({operator, {Op, Line}}) ->
+read({operator, {Op, _}}) ->
     case Op of
         '+' ->
-            fun(X, Accum) -> Accum + X end;
+            fun(X) -> lists:foldl(fun(Y, Accum) -> Accum + Y end, 0, X) end;
         '-' ->
-            fun(X, Accum) -> Accum - X end;
+            fun([H|T]) -> lists:foldl(fun(Y, Accum) -> Accum - Y end, H, T) end;
         '*' ->
-            fun(X, Accum) -> Accum * X end;
+            fun(X) -> lists:foldl(fun(Y, Accum) -> Accum * Y end, 1, X) end;
         '/' ->
-            fun(X, Accum) -> Accum / X end
+            fun([H|T]) -> lists:foldl(fun(Y, Accum) -> Accum / Y end, H, T) end
     end;
     
-eval({integer, _, Value}) ->
+read({integer, _, Value}) ->
     Value;
     
-eval({float, _, Value}) ->
+read({float, _, Value}) ->
     Value;
     
-eval({symbol, _, Value}) ->
+read({symbol, _, Value}) ->
     Value;
     
-eval(nil) ->
-    nil;
-        
+read(nil) ->
+    [];
+    
+read(String) ->
+    {ok, read(hive_parser:parse(element(2,hive_scanner:string(String))))}.
+    
+eval({ok, [H|T]}) when is_function(H) ->
+    lisp_apply(H, T);
+    
+eval({ok, [H|T]}) ->
+    map(fun(X) -> eval({ok, X}) end, [H|T]);
+    
+eval({ok, []}) ->
+    [];
+    
+eval({ok, Value}) ->
+    Value;
+           
 eval(String) ->
-    print(eval(read(String))).
+    eval(read(String)).
     
-print(Result) ->
-    io:format("~p~n", [Result]).
+%print(Result) ->
+%    io:format("~p~n", [Result]).
     
 
 % TODO: Replace this loop with a receive loop for distributed computations
-loop() ->
-    Expression = read("hive> "),
-    print(eval(Expression)),
-    loop().
+%loop() ->
+%    Expression = read("hive> "),
+%    print(eval(Expression)),
+%    loop().
