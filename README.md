@@ -1,4 +1,4 @@
-Hive - A simple Common-Lisp implementation on Erlang
+Hive - A simple Lisp implementation on Erlang
 ====================================================
 
 This is pretty much a toy project, so don't take the bugs too seriously.

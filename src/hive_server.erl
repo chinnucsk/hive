@@ -58,29 +58,41 @@ lisp_apply(Op, [H | T]) ->
     
 lisp_apply(_, []) -> [].
 
-read(Prompt) ->
-    io:get_line(Prompt).
+read(String) ->
+    hive_parser:parse(element(2,hive_scanner:string(String))).
     
-eval({ok, [H | T], _}) ->
-    eval({eval, [H | T]});
+eval({ok, Expression}) ->
+    eval(Expression);
     
-eval({eval, [H | T]}) ->
-    case H of
-        {'(', _} ->
-            eval({eval, lists:sublist(T,length(T) - 1)});
-        {integer, _, Value} ->
-            Value;
-        {float, _, Value} ->
-            Value;
-        {Op, _} ->
-            lisp_apply(Op, T)
+eval({cons, E1, E2}) ->
+    [eval(E1), eval(E2)];
+    
+eval({operator, {Op, Line}}) ->
+    case Op of
+        '+' ->
+            fun(X, Accum) -> Accum + X end;
+        '-' ->
+            fun(X, Accum) -> Accum - X end;
+        '*' ->
+            fun(X, Accum) -> Accum * X end;
+        '/' ->
+            fun(X, Accum) -> Accum / X end
     end;
     
-eval({eval, Term}) ->
-    eval({eval, [Term]});
+eval({integer, _, Value}) ->
+    Value;
     
+eval({float, _, Value}) ->
+    Value;
+    
+eval({symbol, _, Value}) ->
+    Value;
+    
+eval(nil) ->
+    nil;
+        
 eval(String) ->
-    eval(erl_scan:string(String)).
+    print(eval(read(String))).
     
 print(Result) ->
     io:format("~p~n", [Result]).
